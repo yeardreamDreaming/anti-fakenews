@@ -4,7 +4,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from preprocessing import text_preprocessing_for_rag
-from langchain.document_loaders import DirectoryLoader, TextLoader
+from langchain_ollama import ChatOllama
+from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
+from langchain_core.output_parsers.string import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 import os
 import yaml
 
@@ -40,8 +43,9 @@ def rag(config_path, state):
 
     # vectordb
     vectordb = store_or_load_Vectordb(docs, embeddings)
+    retriever = vectordb.as_retriever(search_type='similarity', search_kwargs={'k': 5})
     
-    prompt = '''
+    system = '''
         [System role]
         You are a professional AI journalist and fact-checking analyst. Your goal is to evaluate a given news article or claim and assess its reliability.
 
@@ -65,8 +69,26 @@ def rag(config_path, state):
         - Fact-Check Analysis:
         - Final Assessment: [Fact-based / Misleading / Fake News]
 
-        [Input Article]
-        <<< INSERT ARTICLE TEXT HERE >>>
-        '''
 
+        '''
+        
+    prompt = ChatPromptTemplate([
+        SystemMessage(system),
+        HumanMessage("Article:\n{context}\n\nQuestion: {question}")
+    ])
+    
+    llm = ChatOllama(model=model_name)
+    
+    # compressor
+    compressor = EmbeddingsFilter(embeddings=embeddings)
+    retriever = ContextualCompressionRetriever(base_compressor=compressor, base_retriever=retriever)
+    
+    def format_docs(docs):
+        return '\n\n'.join(doc.page_content for doc in docs)
+    
+    chain = ({'context': retriever | RunnableLambda(format_docs), 'question': RunnablePassthrough()}
+             | prompt | llm | StrOutputParser())
+    
+    # 실행
+    return chain.invoke(query)
     
