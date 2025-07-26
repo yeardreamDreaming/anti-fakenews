@@ -61,20 +61,21 @@ def output_node(state: NewsState):
     return state
 
 # Build Graph
-builder = StateGraph(NewsState)
-builder.add_node('Summarize', summarize)
-builder.add_node('FactCheck', fact_check)
-builder.add_node('Classify', classify_news)
-builder.add_node('Output', output_node)
+def run_graph(input):
+    builder = StateGraph(NewsState)
+    builder.add_node('Summarize', summarize)
+    builder.add_node('FactCheck', fact_check)
+    builder.add_node('Classify', classify_news)
+    builder.add_node('Output', output_node)
 
-builder.set_entry_point('Summarize') # 요약부터 시작
-builder.add_edge('Summarize', 'FactCheck')
-builder.add_edge("FactCheck", "Classify")
-builder.add_edge("Classify", "Output")
-builder.add_edge("Output", END)
+    builder.set_entry_point('Summarize') # 요약부터 시작
+    builder.add_edge('Summarize', 'FactCheck')
+    builder.add_edge("FactCheck", "Classify")
+    builder.add_edge("Classify", "Output")
+    builder.add_edge("Output", END)
 
-graph = builder.compile()
-
+    graph = builder.compile()
+    return graph.invoke(input)
     
     
     
