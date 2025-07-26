@@ -75,7 +75,7 @@ def run_graph(input):
     builder.add_edge("Output", END)
 
     graph = builder.compile()
-    return graph.invoke(input)
+    return graph.invoke({'input': input})
     
     
     
