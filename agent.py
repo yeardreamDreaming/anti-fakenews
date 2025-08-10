@@ -16,6 +16,13 @@ class NewsState(TypedDict):
     verdict: str # 최종 판단
     score: Optional[float] # 신뢰도 점수
     url: str # 출처
+    
+
+# 뉴스 긁어오기
+def get_news(state: NewsState):
+    keyword = state['input']
+    
+    
 
 # 1. 뉴스 요약
 def summarize(state: NewsState):
