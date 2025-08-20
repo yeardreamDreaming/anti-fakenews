@@ -11,7 +11,7 @@ llm = ChatOllama(model='exaone3.5:7.8b')
 
 class NewsState(TypedDict):
     input: str # 입력 뉴스 기사,
-    article_result: str # 검색 결과
+    article_result: list # 검색 결과
     keyword_summary: str # 요약 결과
     fact_check: str # 팩트체크 결과
     verdict: str # 최종 판단
@@ -21,12 +21,18 @@ class NewsState(TypedDict):
 # 1. 키워드 추출
 def extract_keyword(state: NewsState):
     text = state['input']
-    prompt = ChatPromptTemplate([('system', 'You are a professional keyword extractor.'),
-                                 ('human', '''- Preserve the meaning and context of the sentence.
-                                            - Focus on people, locations, and events.
-                                            - Connect related expressions as much as possible.
-                                            - Output the result in Korean only, as a space-separated string of keywords.
-                                        Sentence: {text}''')])
+    prompt = ChatPromptTemplate([('system', '당신은 전문 키워드 추출가입니다.'),
+    ('human', '''
+        다음 문장에서 사람, 장소, 사건, 날짜 중심으로 핵심 키워드를 추출하세요.
+        - 의미와 문맥을 보존하세요.
+        - 관련 표현이나 다중 단어는 "_"로 연결하세요.
+        - 날짜나 시간 표현도 하나의 단위로 묶으세요.
+        - 키워드끼리는 공백으로 구분하세요.
+        - 출력 예시는 다음과 같습니다:
+        예: "도널드_트럼프 블라디미르_푸틴 알래스카_정상회담 2025년_8월"
+        문장: {text}
+    ''')])
+
     chain = prompt | llm | StrOutputParser()
     summary = chain.invoke({'text': text})
     state['keyword_summary'] = summary.strip()
@@ -64,38 +70,36 @@ def fact_check(state: NewsState):
             article = Article(url)
             article.download()
             article.parse()
-            article_txt = article.title + '\n' + article.text
-            article_list.append(article_txt)
+            article_title = article.title
+            article_content = article.text
+            article_list.append({'title': article_title, 'article_content': article_content})
         except Exception as e:
             print(f'예상치 못한 에러 발생!, {e}')
     
     # 검색 결과 정리
-    article_result = '\n'.join(map(str, article_list))
-    state['article_result'] = article_result
+    state['article_result'] = article_list
+    print(state['article_result'])
 
 
     # LLM 프롬프트
-    prompt = ChatPromptTemplate(
-        [
-            ('system','You are a professional fact-checker.'),
-            ('human','''Here is a user query and recent news search results.
+    prompt = ChatPromptTemplate([
+        ('system','당신은 전문 팩트체커입니다.'),
+        ('human', '''
+            사용자 쿼리와 리스트로 주어진 뉴스 검색 결과를 기반으로 사실 여부를 판단하고 문장으로 서술하세요.
 
-            Query: {query}
-            News search results: {article_result}
+            쿼리: {query}
+            뉴스 검색 결과: {article_result}
 
-            Instructions:
-            - Analyze only the user query ({query}).
-            - Use the news search results ({article_result}) as supporting evidence for your analysis.
-            - Do NOT rely solely on assumptions or general knowledge; base your assessment on the content of the news articles.
-            - Determine whether the query contains true or false information.
-            - Point out any signs of misinformation such as exaggeration, lack of sources, or logical fallacies, using evidence from the articles.
-            - Infer the political orientation of the query (e.g., conservative, liberal, centrist, unknown) using the articles as context.
-        
-            Please write all outputs in Korean.
-        ''')])
+            지침:
+            1. 뉴스 검색 결과를 먼저 요약한뒤, 근거로 판단하세요. 
+            2. 뉴스 검색 결과 요약시에 관련 없는 군더더기 내용은 제거하세요.
+            3. 추측이나 일반 지식에만 의존하지 마세요.
+            4. 과장, 출처 부족, 논리적 오류 등을 표시해주세요.
+            5. 정치적 성향은 "보수, 진보, 중도, 알 수 없음" 중 선택하세요.
+    ''')])
 
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke({'query': query, 'article_result': article_result})
+    result = chain.invoke({'query': query, 'article_result': state['article_result'] })
 
     state['fact_check'] = result
     return state
@@ -104,31 +108,19 @@ def fact_check(state: NewsState):
 def evaluate(state: NewsState):
     fact_result = state['fact_check']
     prompt = ChatPromptTemplate([
-    ('system', 'You are a fake news detection expert.'),
-    ('human', '''
-        Based on the following fact-checking result, provide a multi-dimensional assessment of the news.
+        ('system', '당신은 가짜 뉴스 탐지 전문가입니다.'),
+        ('human', '''
+        다음 팩트체크 결과를 기반으로 뉴스의 신뢰도를 평가하고, 각 항목 점수를 0.0~1.0 사이로 배점하세요.
 
-        Instructions:
-        - Analyze only the information in {fact_result}.
-        - Assign a score from 0.0 to 1.0 for each of the following aspects:
-            * Exaggeration (과장)
-            * Lack of sources (출처 부족)
-            * Logical errors (논리적 오류)
-            * Political bias (정치적 편향)
-        - Compute an overall fake probability (0.0 to 1.0) based on the above scores.
-        - Provide a short reason in Korean (1-2 sentences).
-        - Output format:
-            Exaggeration(과장): [0.0-1.0]
-            Lack of sources(출처 부족): [0.0-1.0]
-            Logical errors(논리적 오류): [0.0-1.0]
-            Political bias(정치적 편향): [0.0-1.0]
-            Overall fake probability(전체 허위 가능성): [0.0-1.0]
-            Reason: [Short explanation in Korean]
-        Do not repeat the detailed fact-checking points.
-        Do not use bold, italic, or headers.
-        {fact_result}
-        ''')
-        ])
+        팩트체크 결과: {fact_result}
+
+        점수 항목:
+        - 과장(Exaggeration)
+        - 출처 부족(Lack of sources)
+        - 논리적 오류(Logical errors)
+        - 정치적 편향(Political bias)
+        - 전체 허위 가능성(Overall fake probability)
+''')])
     chain = prompt | llm | StrOutputParser()
     result = chain.invoke({'fact_result': fact_result})
     state['verdict'] = result
