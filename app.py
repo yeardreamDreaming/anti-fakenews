@@ -5,9 +5,9 @@ from typing import List, Dict
 from agent import run_graph
 
 # 봇 만들기
-st.set_page_config(page_title="🕵️ 가짜뉴스 탐지 챗봇", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="🕵️ FakeGuard", page_icon="🧠", layout="wide")
 
-st.title("🕵️ 가짜뉴스 탐지 챗봇")
+st.title("🕵️ FakeGuard")
 st.markdown("뉴스 내용이나 의심되는 정보를 입력하면 AI가 팩트체크를 도와줍니다.")
 
 query = st.text_area("📝 뉴스 내용 입력", height=150, placeholder="예: '2025년에 대한민국이 핵무장을 완료했다'...")

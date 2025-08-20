@@ -51,7 +51,7 @@ def fact_check(state: NewsState):
         except Exception as e:
             print(f"Error occurred: {e}")
 
-    google_news = GNews(language='ko', country='KR', max_results=10)
+    google_news = GNews(language='ko', country='KR', max_results=5)
 
     # 검색하고자 하는 주제입력
     resp = google_news.get_news(state['keyword_summary'])
@@ -60,9 +60,12 @@ def fact_check(state: NewsState):
     article_list = []
     for item in resp:
         # 구글뉴스 url 디코딩하여 article 가져온다
-        url = decode_url(item['url'])
-        article = google_news.get_full_article(url).title + '\n' + google_news.get_full_article(url).text
-        article_list.append(article)
+        try:
+            url = decode_url(item['url'])
+            article = google_news.get_full_article(url).title + '\n' + google_news.get_full_article(url).text
+            article_list.append(article)
+        except Exception:
+            print('예상치 못한 에러 발생!')
     
     # 검색 결과 정리
     article_result = '\n'.join(map(str, article_list))
