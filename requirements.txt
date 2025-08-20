@@ -1,0 +1,9 @@
+gnews==0.4.2
+googlenewsdecoder==0.1.7
+langchain==0.3.27
+langchain_core==0.3.74
+langchain_ollama==0.3.6
+langgraph==0.6.6
+PyYAML==6.0.2
+PyYAML==6.0.2
+streamlit==1.44.1
