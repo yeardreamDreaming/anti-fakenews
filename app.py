@@ -19,14 +19,10 @@ if st.button("🔍 확인하기") and query.strip():
     st.success("✅ 분석 완료")
 
     st.markdown("### 🤖 챗봇의 응답")
-    st.write(f'요약 : {result['summary']}')
-    st.write(f'팩트체크 결과 : {result['fact_check']}')
-    st.write(f'최종 판단 : {result['verdict']}')
+    st.write(f'{result['fact_check']}')
+    st.write(f'{result['verdict']}')
 
-    # st.markdown("### 📄 근거 문서")
-    # for i, doc in enumerate(result["sources"]):
-    #     st.markdown(f"**문서 {i+1}**")
-    #     st.info(doc.page_content)
+
 
     # st.progress(result["score"])
     # st.write(f"Score: **{round(result['score']*100, 2)}%**")
