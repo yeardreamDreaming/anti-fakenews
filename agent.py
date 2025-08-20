@@ -62,7 +62,6 @@ def fact_check(state: NewsState):
 
     # 데이터 찾기
     article_list = []
-    print(f'키워드 : {state['keyword_summary']}')
     for item in resp:
         # 구글뉴스 url 디코딩하여 article 가져온다
         try:
@@ -78,8 +77,6 @@ def fact_check(state: NewsState):
     
     # 검색 결과 정리
     state['article_result'] = article_list
-    print(state['article_result'])
-
 
     # LLM 프롬프트
     prompt = ChatPromptTemplate([
@@ -93,9 +90,10 @@ def fact_check(state: NewsState):
             지침:
             1. 뉴스 검색 결과를 먼저 요약한뒤, 근거로 판단하세요. 
             2. 뉴스 검색 결과 요약시에 관련 없는 군더더기 내용은 제거하세요.
-            3. 추측이나 일반 지식에만 의존하지 마세요.
+            3. 추측이나 일반 지식에만 의존하지 마세요
             4. 과장, 출처 부족, 논리적 오류 등을 표시해주세요.
             5. 정치적 성향은 "보수, 진보, 중도, 알 수 없음" 중 선택하세요.
+            6. 검색 결과를 가져온 것은, 사용자의 쿼리가 사실인지 확인하기 위해서 가져왔습니다. 활용하여서 쿼리가 사실이지 거짓인지 판별해주세요.
     ''')])
 
     chain = prompt | llm | StrOutputParser()
@@ -111,6 +109,7 @@ def evaluate(state: NewsState):
         ('system', '당신은 가짜 뉴스 탐지 전문가입니다.'),
         ('human', '''
         다음 팩트체크 결과를 기반으로 뉴스의 신뢰도를 평가하고, 각 항목 점수를 0.0~1.0 사이로 배점하세요.
+        0점에 가까우면 진실이고, 1점에 가까우면 거짓입니다.
 
         팩트체크 결과: {fact_result}
 
