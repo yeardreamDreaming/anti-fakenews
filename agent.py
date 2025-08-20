@@ -5,6 +5,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from googlenewsdecoder import new_decoderv1
 from gnews import GNews
+import time
 
 
 llm = ChatOllama(model='exaone3.5:7.8b')
@@ -64,6 +65,7 @@ def fact_check(state: NewsState):
             url = decode_url(item['url'])
             article = google_news.get_full_article(url).title + '\n' + google_news.get_full_article(url).text
             article_list.append(article)
+            time.sleep(3)
         except Exception:
             print('예상치 못한 에러 발생!')
     
