@@ -1,12 +1,11 @@
 from langgraph.graph import StateGraph, END
-from typing import TypedDict, Optional
+from typing import TypedDict
 from langchain_ollama import ChatOllama
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from googlenewsdecoder import new_decoderv1
 from gnews import GNews
-import time
-
+from newspaper import Article
 
 llm = ChatOllama(model='exaone3.5:7.8b')
 
@@ -23,12 +22,10 @@ class NewsState(TypedDict):
 def extract_keyword(state: NewsState):
     text = state['input']
     prompt = ChatPromptTemplate([('system', 'You are a professional keyword extractor.'),
-                                 ('human', '''Extract the core keywords from the following sentence:
-                                        - Preserve the meaning and context of the sentence.
-                                        - Focus on people, locations, and events.
-                                        - Connect related expressions as much as possible.
-                                        - Output the result as a space-separated string of keywords in Korean.
-
+                                 ('human', '''- Preserve the meaning and context of the sentence.
+                                            - Focus on people, locations, and events.
+                                            - Connect related expressions as much as possible.
+                                            - Output the result in Korean only, as a space-separated string of keywords.
                                         Sentence: {text}''')])
     chain = prompt | llm | StrOutputParser()
     summary = chain.invoke({'text': text})
@@ -52,21 +49,25 @@ def fact_check(state: NewsState):
         except Exception as e:
             print(f"Error occurred: {e}")
 
-    google_news = GNews(language='ko', country='KR', max_results=5)
+    google_news = GNews(language='ko', country='KR', max_results=10)
 
     # 검색하고자 하는 주제입력
     resp = google_news.get_news(state['keyword_summary'])
 
     # 데이터 찾기
     article_list = []
+    print(f'키워드 : {state['keyword_summary']}')
     for item in resp:
         # 구글뉴스 url 디코딩하여 article 가져온다
         try:
             url = decode_url(item['url'])
-            article = google_news.get_full_article(url).title + '\n' + google_news.get_full_article(url).text
-            article_list.append(article)
-        except Exception:
-            print('예상치 못한 에러 발생!')
+            article = Article(url)
+            article.download()
+            article.parse()
+            article_txt = article.title + '\n' + article.text
+            article_list.append(article_txt)
+        except Exception as e:
+            print(f'예상치 못한 에러 발생!, {e}')
     
     # 검색 결과 정리
     article_result = '\n'.join(map(str, article_list))
@@ -77,19 +78,20 @@ def fact_check(state: NewsState):
     prompt = ChatPromptTemplate(
         [
             ('system','You are a professional fact-checker.'),
-            ('human','''Here is User's query to ask whether it is true or not :
-             {query}
-        
-        Here are recent related news search results:
-        {article_result}
+            ('human','''Here is a user query and recent news search results.
 
-        Task:
-        1. Summarize the news articles concisely.
-        2. Extract the core claims and distinguish them from factual information.
-        3. Highlight any signs of misinformation: exaggeration, lack of source, or logical fallacies.
-        4. Identify the inputs and infer its political orientation (e.g., conservative, liberal, centrist, unknown).
+            Query: {query}
+            News search results: {article_result}
+
+            Instructions:
+            - Analyze only the user query ({query}).
+            - Use the news search results ({article_result}) as supporting evidence for your analysis.
+            - Do NOT rely solely on assumptions or general knowledge; base your assessment on the content of the news articles.
+            - Determine whether the query contains true or false information.
+            - Point out any signs of misinformation such as exaggeration, lack of sources, or logical fallacies, using evidence from the articles.
+            - Infer the political orientation of the query (e.g., conservative, liberal, centrist, unknown) using the articles as context.
         
-        Please write all outputs in Korean.
+            Please write all outputs in Korean.
         ''')])
 
     chain = prompt | llm | StrOutputParser()
@@ -102,9 +104,31 @@ def fact_check(state: NewsState):
 def evaluate(state: NewsState):
     fact_result = state['fact_check']
     prompt = ChatPromptTemplate([
-        ('system', 'You are a fake news detection expert.'),
-        ('human', 'Based on the following fact-checking result, determine if the original news is likely real or fake. Provide a short explanation in Korean:\n{fact_result}')
-    ])
+    ('system', 'You are a fake news detection expert.'),
+    ('human', '''
+        Based on the following fact-checking result, provide a multi-dimensional assessment of the news.
+
+        Instructions:
+        - Analyze only the information in {fact_result}.
+        - Assign a score from 0.0 to 1.0 for each of the following aspects:
+            * Exaggeration (과장)
+            * Lack of sources (출처 부족)
+            * Logical errors (논리적 오류)
+            * Political bias (정치적 편향)
+        - Compute an overall fake probability (0.0 to 1.0) based on the above scores.
+        - Provide a short reason in Korean (1-2 sentences).
+        - Output format:
+            Exaggeration(과장): [0.0-1.0]
+            Lack of sources(출처 부족): [0.0-1.0]
+            Logical errors(논리적 오류): [0.0-1.0]
+            Political bias(정치적 편향): [0.0-1.0]
+            Overall fake probability(전체 허위 가능성): [0.0-1.0]
+            Reason: [Short explanation in Korean]
+        Do not repeat the detailed fact-checking points.
+        Do not use bold, italic, or headers.
+        {fact_result}
+        ''')
+        ])
     chain = prompt | llm | StrOutputParser()
     result = chain.invoke({'fact_result': fact_result})
     state['verdict'] = result

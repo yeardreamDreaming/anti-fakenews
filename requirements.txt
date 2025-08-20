@@ -6,3 +6,4 @@ langchain_ollama==0.3.6
 langgraph==0.6.6
 newspaper3k==0.2.8
 streamlit==1.44.1
+lxml_html_clean==0.4.2
