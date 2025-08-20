@@ -3,6 +3,11 @@ FakeGuard 뉴스 리터러시 팩트체크
 
 
 ## 사용 방법
+먼저, git clone을 활용하여 레포지토리를 clone 해옵니다
+```bash 
+git clone https://github.com/yeardreamDreaming/fakeguard.git
+```
+
 이 프로젝트를 사용하시기 위해서는 기본적으로 파이썬과 ollama 설치가 필수적입니다.
 
 우선, 다음과 같은 명령어로 파이썬 가상 환경을 먼저 만듭니다.
