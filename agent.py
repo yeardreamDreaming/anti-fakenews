@@ -65,7 +65,6 @@ def fact_check(state: NewsState):
             url = decode_url(item['url'])
             article = google_news.get_full_article(url).title + '\n' + google_news.get_full_article(url).text
             article_list.append(article)
-            time.sleep(3)
         except Exception:
             print('예상치 못한 에러 발생!')
     
