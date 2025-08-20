@@ -27,5 +27,6 @@ ollama를 설치하시고, 윈도우 파워쉘(또는 cmd)나 터미널(리눅�
 종료하실때는 터미널/파워쉘 창을 닫으시면 자동으로 종료됩니다.
 
 ## 분석 예(이미지)
-![분석 이미지 1](./examples/ab1.png)
-![분석 이미지 2](./examples/ab2.png)
+![분석 이미지 1](./examples/example1.png)
+![분석 이미지 2](./examples/example2.png)
+![분석 이미지 2](./examples/example3.png)
